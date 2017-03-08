@@ -1,11 +1,9 @@
 <?php
 /**
- * This file is part of the Pilotage package.
- *
- * @author Bogdan SOOS <bogdan.soos@external.engie.com>
+ * @author Bogdan SOOS <bogdan.soos@dynweb.org>
  * @created 08/03/2017 20:54
- * @version 1.0
- * @license All rights reserved
+ * @version 0.1
+ * @license MIT
  */
 namespace Dynweb\SoapAuth\Auth;
 
@@ -13,7 +11,6 @@ use Cake\Auth\BaseAuthenticate;
 use Cake\Controller\ComponentRegistry;
 use Cake\Http\ServerRequest;
 use Cake\Log\Log;
-use Cake\Network\Request;
 use Cake\Network\Response;
 
 
