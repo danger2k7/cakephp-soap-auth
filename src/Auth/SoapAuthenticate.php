@@ -140,6 +140,7 @@ class SoapAuthenticate extends BaseAuthenticate
         }
 
         Log::debug($request->getHeaders());
+        
         $this->_username = $request->getHeader($config['fields']['username']);
         $this->_password = $request->getHeader($config['fields']['password']);
         if ($this->_username && $this->_password) {
