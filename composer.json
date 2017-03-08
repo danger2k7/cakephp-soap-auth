@@ -1,0 +1,38 @@
+{
+    "name": "danger2k7/cakephp-soap-auth",
+    "type": "cakephp-plugin",
+    "description": "CakePHP plugin for authenticating  for stateless connexions",
+    "keywords": [
+        "cakephp",
+        "authenticate",
+        "authentication",
+        "soap",
+        "stareless"
+    ],
+    "homepage": "https://github.com/danger2k7/cakephp-soap-auth",
+    "authors": [
+        {
+            "name":"Bogdan SOOS",
+            "role":"Author",
+            "homepage":"https://github.com/dynweb-org"
+        }
+    ],
+    "license": "MIT",
+    "support": {
+        "source":"https://github.com/dynweb-org/cakephp-soap-auth",
+        "issues":"https://github.com/dynweb-org/cakephp-soap-auth/issues"
+    },
+    "require": {
+        "cakephp/cakephp": "~3.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Dynweb\\SoapAuth\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Dynweb\\SoapAuth\\Test\\": "tests"
+        }
+    }
+}
