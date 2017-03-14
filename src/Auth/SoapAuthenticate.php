@@ -9,10 +9,13 @@ namespace Dynweb\SoapAuth\Auth;
 
 use Cake\Auth\BaseAuthenticate;
 use Cake\Controller\ComponentRegistry;
+use Cake\Core\Configure;
 use Cake\Http\ServerRequest;
 use Cake\Log\Log;
 use Cake\Network\Response;
-
+use Cake\Utility\Security;
+use Exception;
+use Firebase\JWT\JWT;
 
 /**
  * An authentication adapter for authenticating using Request/SoapHeaders.
@@ -37,6 +40,20 @@ class SoapAuthenticate extends BaseAuthenticate
 {
 
     /**
+     * Parsed token.
+     *
+     * @var string|null
+     */
+    protected $_token;
+
+    /**
+     * Payload data.
+     *
+     * @var object|null
+     */
+    protected $_payload;
+
+    /**
      * Parsed username.
      *
      * @var string|null
@@ -50,12 +67,6 @@ class SoapAuthenticate extends BaseAuthenticate
      */
     protected $_password;
 
-    /**
-     * Payload data.
-     *
-     * @var object|null
-     */
-    protected $_payload;
     /**
      * Exception.
      *
@@ -73,6 +84,8 @@ class SoapAuthenticate extends BaseAuthenticate
     {
         $this->setConfig([
            'userModel' => 'Users',
+           'header' => 'authorization',
+           'allowedAlgs' => ['HS256'],
            'fields' => [
                'username' => 'username',
                'password' => 'password',
@@ -106,8 +119,8 @@ class SoapAuthenticate extends BaseAuthenticate
      */
     public function getUser(ServerRequest $request)
     {
-        $login = $this->getUsernameAndPassword($request);
-        if (empty($login)) {
+        $payload = $this->getPayload($request);
+        if (empty($payload)) {
             return false;
         }
 
@@ -121,6 +134,75 @@ class SoapAuthenticate extends BaseAuthenticate
         return $user;
     }
 
+    /**
+     * Get payload data.
+     *
+     * @param \Cake\Http\ServerRequest|null $request Request instance or null
+     *
+     * @return object|null Payload object on success, null on failurec
+     */
+    public function getPayload($request = null)
+    {
+        if (!$request) {
+            return $this->_payload;
+        }
+        $payload = null;
+        $token = $this->getToken($request);
+        if ($token) {
+            $payload = $this->_decode($token);
+        }
+        return $this->_payload = $payload;
+    }
+
+    /**
+     * Get token from header or query string.
+     *
+     * @param \Cake\Http\ServerRequest|null $request Request object.
+     *
+     * @return string|null Token string if found else null.
+     */
+    public function getToken($request = null)
+    {
+        $config = $this->getConfig();
+
+
+        if (!$request) {
+            return $this->_token;
+        }
+
+        $header = $request->header($config['header']);
+
+        if ($header) {
+            return $this->_token = $header;
+        }
+
+        if (!empty($this->getConfig('parameter'))) {
+            $this->_token = $request->query($this->getConfig('parameter'));
+        }
+
+        return $this->_token;
+    }
+
+    /**
+     * Decode JWT token.
+     *
+     * @param string $token JWT token to decode.
+     * @return null|object The JWT's payload as a PHP object, null on failure.
+     * @throws \Exception
+     */
+    protected function _decode($token)
+    {
+        $config = $this->getConfig();
+        try {
+            $payload = JWT::decode($token, $config['key'] ?: Security::salt(), $config['allowedAlgs']);
+            return $payload;
+        } catch (Exception $e) {
+            if (Configure::read('debug')) {
+                throw $e;
+            }
+            $this->_error = $e;
+        }
+    }
 
     /**
      * Get token from header or query string.
