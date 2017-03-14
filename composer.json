@@ -19,12 +19,12 @@
     ],
     "license": "MIT",
     "support": {
-        "source":"https://github.com/dynweb-org/cakephp-soap-auth",
-        "issues":"https://github.com/dynweb-org/cakephp-soap-auth/issues"
+        "source":"https://github.com/danger2k7/cakephp-soap-auth",
+        "issues":"https://github.com/danger2k7/cakephp-soap-auth/issues"
     },
     "require": {
-        "cakephp/cakephp": "^3.4",
-        "firebase/php-jwt": "^4.0"
+        "zendframework/zend-diactoros": "~1.0",
+        "cakephp/cakephp": "^3.4"
     },
     "autoload": {
         "psr-4": {

@@ -9,13 +9,9 @@ namespace Dynweb\SoapAuth\Auth;
 
 use Cake\Auth\BaseAuthenticate;
 use Cake\Controller\ComponentRegistry;
-use Cake\Core\Configure;
 use Cake\Http\ServerRequest;
-use Cake\Log\Log;
-use Cake\Network\Response;
-use Cake\Utility\Security;
-use Exception;
-use Firebase\JWT\JWT;
+use Cake\Http\Response;
+use Zend\Diactoros\Stream;
 
 /**
  * An authentication adapter for authenticating using Request/SoapHeaders.
@@ -42,7 +38,7 @@ class SoapAuthenticate extends BaseAuthenticate
     /**
      * Parsed token.
      *
-     * @var string|null
+     * @var string|array|null
      */
     protected $_token;
 
@@ -83,16 +79,18 @@ class SoapAuthenticate extends BaseAuthenticate
     public function __construct(ComponentRegistry $registry, $config)
     {
         $this->setConfig([
-           'userModel' => 'Users',
-           'header' => 'authorization',
-           'allowedAlgs' => ['HS256'],
-           'fields' => [
-               'username' => 'username',
-               'password' => 'password',
-           ],
-           'queryDatasource' => true,
-           'unauthenticatedException' => '\Cake\Network\Exception\UnauthorizedException',
-           'key' => null,
+            'userModel' => 'Users',
+            'soapHeader' => [
+                'username' => 'username',
+                'password' => 'password',
+            ],
+            'fields' => [
+                'username' => 'username',
+                'password' => 'password',
+            ],
+            'queryDatasource' => true,
+            'unauthenticatedException' => '\SoapFault',
+            'key' => null,
         ]);
 
         parent::__construct($registry, $config);
@@ -102,7 +100,7 @@ class SoapAuthenticate extends BaseAuthenticate
      * Authenticate a user based on the request information.
      *
      * @param \Cake\Http\ServerRequest $request Request to get authentication information from.
-     * @param \Cake\Network\Response $response A response object that can have headers added.
+     * @param \Cake\Http\Response $response A response object that can have headers added.
      * @return mixed Either false on failure, or an array of user data on success.
      */
     public function authenticate(ServerRequest $request, Response $response)
@@ -139,7 +137,7 @@ class SoapAuthenticate extends BaseAuthenticate
      *
      * @param \Cake\Http\ServerRequest|null $request Request instance or null
      *
-     * @return object|null Payload object on success, null on failurec
+     * @return object|null|array Payload object on success, null on failurec
      */
     public function getPayload($request = null)
     {
@@ -148,9 +146,11 @@ class SoapAuthenticate extends BaseAuthenticate
         }
         $payload = null;
         $token = $this->getToken($request);
-        if ($token) {
-            $payload = $this->_decode($token);
+
+        if ( $token && is_array($token)){
+            $payload = $token;
         }
+
         return $this->_payload = $payload;
     }
 
@@ -165,43 +165,30 @@ class SoapAuthenticate extends BaseAuthenticate
     {
         $config = $this->getConfig();
 
-
         if (!$request) {
             return $this->_token;
         }
 
-        $header = $request->header($config['header']);
+        /** @var \DOMDocument $dom */
+        $dom = $request->input('Cake\Utility\Xml::build', ['return' => 'domdocument']);
 
-        if ($header) {
-            return $this->_token = $header;
+        if (count($dom->getElementsByTagName($config['soapHeader']['username'])) > 0){
+            $this->_username = $dom->getElementsByTagName($config['soapHeader']['username'])[0]->nodeValue;
+
         }
 
-        if (!empty($this->getConfig('parameter'))) {
-            $this->_token = $request->query($this->getConfig('parameter'));
+        if (count($dom->getElementsByTagName($config['soapHeader']['password'])) > 0){
+            $this->_password = $dom->getElementsByTagName($config['soapHeader']['password'])[0]->nodeValue;
+
+        }
+        if (!empty($this->_username) && !empty($this->_password)){
+            $this->_token = [
+                $config['fields']['username'] => $this->_username,
+                $config['fields']['password'] => $this->_password
+            ];
         }
 
         return $this->_token;
-    }
-
-    /**
-     * Decode JWT token.
-     *
-     * @param string $token JWT token to decode.
-     * @return null|object The JWT's payload as a PHP object, null on failure.
-     * @throws \Exception
-     */
-    protected function _decode($token)
-    {
-        $config = $this->getConfig();
-        try {
-            $payload = JWT::decode($token, $config['key'] ?: Security::salt(), $config['allowedAlgs']);
-            return $payload;
-        } catch (Exception $e) {
-            if (Configure::read('debug')) {
-                throw $e;
-            }
-            $this->_error = $e;
-        }
     }
 
     /**
@@ -217,8 +204,6 @@ class SoapAuthenticate extends BaseAuthenticate
         if (!$request) {
             return null;
         }
-
-        Log::debug($request->getHeaders());
 
         $this->_username = $request->getHeader($config['fields']['username']);
         $this->_password = $request->getHeader($config['fields']['password']);
@@ -239,23 +224,34 @@ class SoapAuthenticate extends BaseAuthenticate
      * null.
      *
      * @param \Cake\Http\ServerRequest $request A request object.
-     * @param \Cake\Network\Response $response A response object.
+     * @param \Cake\Http\Response $response A response object.
      *
      * @throws \Cake\Network\Exception\UnauthorizedException Or any other
      *   configured exception.
      *
-     * @return void
+     * @return \Cake\Http\Response|void
      */
     public function unauthenticated(ServerRequest $request, Response $response)
     {
-        $this->getConfig();
-        if (!$this->getConfig('unauthenticatedException')) {
-            return;
-        }
-        $message = $this->_error ? $this->_error->getMessage() : $this->_registry->Auth->_config['authError'];
-        $exceptionClass = $this->getConfig('unauthenticatedException');
-        $exception = new $exceptionClass($message);
 
-        throw $exception;
+        /** @var Response $response */
+        $response->withType('text/xml');
+        $dom = ('
+        <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+           <SOAP-ENV:Body>
+              <SOAP-ENV:Fault>
+                 <faultcode>UNAUTHORIZED</faultcode>
+                 <faultstring>' . __('You are not authorized to access that location') . '</faultstring>
+              </SOAP-ENV:Fault>
+           </SOAP-ENV:Body>
+        </SOAP-ENV:Envelope>
+        ');
+
+        $responseBody = new Stream('php://memory', 'rw');
+        $responseBody->write($dom);
+        $responseBody->rewind();
+        $response = $response->withBody($responseBody);
+
+        return $response;
     }
 }
