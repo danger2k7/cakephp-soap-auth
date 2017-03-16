@@ -172,15 +172,21 @@ class SoapAuthenticate extends BaseAuthenticate
         /** @var \DOMDocument $dom */
         $dom = $request->input('Cake\Utility\Xml::build', ['return' => 'domdocument']);
 
-        if (count($dom->getElementsByTagName($config['soapHeader']['username'])) > 0){
+        if (count($dom->getElementsByTagName($config['soapHeader']['username'])) > 0 &&
+            isset($dom->getElementsByTagName($config['soapHeader']['username'])[0]) &&
+            $dom->getElementsByTagName($config['soapHeader']['username'])[0] instanceof \DOMNode
+        ){
             $this->_username = $dom->getElementsByTagName($config['soapHeader']['username'])[0]->nodeValue;
 
         }
 
-        if (count($dom->getElementsByTagName($config['soapHeader']['password'])) > 0){
+        if (count($dom->getElementsByTagName($config['soapHeader']['password'])) > 0 &&
+            isset($dom->getElementsByTagName($config['soapHeader']['password'])[0]) &&
+            $dom->getElementsByTagName($config['soapHeader']['password'])[0] instanceof \DOMNode){
             $this->_password = $dom->getElementsByTagName($config['soapHeader']['password'])[0]->nodeValue;
 
         }
+
         if (!empty($this->_username) && !empty($this->_password)){
             $this->_token = [
                 $config['fields']['username'] => $this->_username,
