@@ -6,7 +6,7 @@ Plugin containing AuthComponent's authenticate class for authenticating using he
 
 ## Requirements
 
-* CakePHP 3.1+
+* CakePHP 3.4+
 
 ## Installation
 
